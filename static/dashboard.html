@@ -1,0 +1,948 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>GridSense AI — Smart Grid Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #0a0e1a;
+    --bg2: #0f1528;
+    --bg3: #141929;
+    --card: #151b2e;
+    --card2: #1a2136;
+    --border: rgba(99,179,237,0.12);
+    --border2: rgba(99,179,237,0.22);
+    --text: #e8edf8;
+    --text2: #8a95b0;
+    --text3: #5a6480;
+    --accent: #3b82f6;
+    --accent2: #60a5fa;
+    --green: #22c55e;
+    --yellow: #f59e0b;
+    --red: #ef4444;
+    --purple: #a78bfa;
+    --teal: #14b8a6;
+    --font: 'Space Grotesk', sans-serif;
+    --mono: 'JetBrains Mono', monospace;
+    --radius: 12px;
+    --radius-sm: 8px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Grid background */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image:
+      linear-gradient(rgba(59,130,246,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(59,130,246,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .shell { position: relative; z-index: 1; }
+
+  /* ── Topbar ── */
+  .topbar {
+    background: rgba(15,21,40,0.9);
+    border-bottom: 1px solid var(--border);
+    backdrop-filter: blur(12px);
+    padding: 0 2rem;
+    height: 60px;
+    display: flex; align-items: center; justify-content: space-between;
+    position: sticky; top: 0; z-index: 100;
+  }
+  .logo { display: flex; align-items: center; gap: 10px; }
+  .logo-icon {
+    width: 32px; height: 32px;
+    background: linear-gradient(135deg, var(--accent), var(--teal));
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .logo-icon svg { width: 18px; height: 18px; }
+  .logo-text { font-size: 16px; font-weight: 600; letter-spacing: -0.3px; }
+  .logo-text span { color: var(--accent2); }
+  .topbar-right { display: flex; align-items: center; gap: 1rem; }
+  .live-badge {
+    display: flex; align-items: center; gap: 6px;
+    background: rgba(34,197,94,0.1);
+    border: 1px solid rgba(34,197,94,0.25);
+    border-radius: 20px;
+    padding: 4px 12px;
+    font-size: 12px; font-weight: 500; color: var(--green);
+    font-family: var(--mono);
+  }
+  .live-dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--green);
+    animation: pulse 1.5s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(0.7); }
+  }
+  .clock { font-family: var(--mono); font-size: 13px; color: var(--text2); }
+
+  /* ── Layout ── */
+  .main { padding: 1.5rem 2rem; max-width: 1400px; margin: 0 auto; }
+
+  /* ── Section labels ── */
+  .section-label {
+    font-size: 11px; font-weight: 600; letter-spacing: 1.5px;
+    color: var(--text3); text-transform: uppercase; margin-bottom: 0.75rem;
+  }
+
+  /* ── Summary strip ── */
+  .summary-strip {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem; margin-bottom: 1.5rem;
+  }
+  .summary-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1rem 1.25rem;
+    position: relative; overflow: hidden;
+  }
+  .summary-card::after {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  }
+  .summary-card.blue::after { background: linear-gradient(90deg, var(--accent), var(--teal)); }
+  .summary-card.green::after { background: linear-gradient(90deg, var(--green), #10b981); }
+  .summary-card.yellow::after { background: linear-gradient(90deg, var(--yellow), #f97316); }
+  .summary-card.red::after { background: linear-gradient(90deg, var(--red), #dc2626); }
+
+  .summary-label { font-size: 12px; color: var(--text2); margin-bottom: 4px; }
+  .summary-value { font-size: 26px; font-weight: 600; letter-spacing: -1px; font-family: var(--mono); }
+  .summary-sub { font-size: 12px; color: var(--text3); margin-top: 2px; }
+
+  /* ── Grid: main content ── */
+  .content-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 1.25rem;
+    margin-bottom: 1.5rem;
+  }
+  .span2 { grid-column: span 2; }
+
+  /* ── Cards ── */
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.25rem;
+  }
+  .card-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 1rem;
+  }
+  .card-title {
+    font-size: 13px; font-weight: 600; letter-spacing: 0.2px; color: var(--text);
+  }
+  .card-badge {
+    font-size: 11px; font-family: var(--mono);
+    padding: 3px 8px; border-radius: 20px;
+    border: 1px solid var(--border2);
+    color: var(--accent2);
+  }
+
+  /* ── Transformer Cards ── */
+  .transformer-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem;
+    margin-bottom: 1.5rem;
+  }
+  .tcard {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.25rem;
+    position: relative;
+    transition: border-color 0.3s;
+  }
+  .tcard.safe { border-color: rgba(34,197,94,0.25); }
+  .tcard.warning { border-color: rgba(245,158,11,0.3); }
+  .tcard.critical { border-color: rgba(239,68,68,0.35); animation: critFlash 1.5s ease-in-out infinite; }
+  @keyframes critFlash {
+    0%,100% { border-color: rgba(239,68,68,0.35); }
+    50% { border-color: rgba(239,68,68,0.7); box-shadow: 0 0 20px rgba(239,68,68,0.15); }
+  }
+
+  .tcard-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem; }
+  .tcard-id { font-size: 22px; font-weight: 700; font-family: var(--mono); color: var(--text); }
+  .tcard-zone { font-size: 11px; color: var(--text3); margin-top: 2px; }
+  .risk-badge {
+    font-size: 11px; font-weight: 600; font-family: var(--mono);
+    padding: 3px 10px; border-radius: 20px; letter-spacing: 0.5px;
+  }
+  .risk-badge.SAFE { background: rgba(34,197,94,0.12); color: var(--green); border: 1px solid rgba(34,197,94,0.2); }
+  .risk-badge.WARNING { background: rgba(245,158,11,0.12); color: var(--yellow); border: 1px solid rgba(245,158,11,0.2); }
+  .risk-badge.CRITICAL { background: rgba(239,68,68,0.12); color: var(--red); border: 1px solid rgba(239,68,68,0.2); }
+
+  .load-bar-wrap { margin: 0.75rem 0; }
+  .load-bar-top { display: flex; justify-content: space-between; font-size: 12px; color: var(--text2); margin-bottom: 5px; }
+  .load-bar-track { height: 6px; background: rgba(255,255,255,0.06); border-radius: 3px; overflow: hidden; }
+  .load-bar-fill {
+    height: 100%; border-radius: 3px;
+    transition: width 1s ease, background 0.5s;
+  }
+  .load-bar-fill.safe { background: linear-gradient(90deg, var(--green), #10b981); }
+  .load-bar-fill.warning { background: linear-gradient(90deg, var(--yellow), #f97316); }
+  .load-bar-fill.critical { background: linear-gradient(90deg, var(--red), #dc2626); }
+
+  .tcard-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 0.75rem; }
+  .tstat { background: var(--bg2); border-radius: var(--radius-sm); padding: 8px 10px; }
+  .tstat-label { font-size: 10px; color: var(--text3); letter-spacing: 0.5px; text-transform: uppercase; }
+  .tstat-value { font-size: 14px; font-weight: 600; font-family: var(--mono); margin-top: 2px; }
+
+  .tcard-actions { display: flex; gap: 6px; margin-top: 0.75rem; }
+  .btn {
+    flex: 1; padding: 6px 10px; border-radius: var(--radius-sm);
+    border: 1px solid var(--border2); background: transparent;
+    font-size: 11px; font-weight: 500; font-family: var(--font);
+    color: var(--text2); cursor: pointer;
+    transition: all 0.15s;
+  }
+  .btn:hover { background: var(--card2); color: var(--text); border-color: var(--accent); }
+  .btn.primary { background: rgba(59,130,246,0.15); color: var(--accent2); border-color: rgba(59,130,246,0.3); }
+  .btn.primary:hover { background: rgba(59,130,246,0.25); }
+  .btn.danger { background: rgba(239,68,68,0.1); color: var(--red); border-color: rgba(239,68,68,0.25); }
+  .btn.danger:hover { background: rgba(239,68,68,0.2); }
+
+  /* ── Chart area ── */
+  .chart-wrap { position: relative; width: 100%; height: 200px; }
+
+  /* ── Alerts & Recs ── */
+  .alert-list, .rec-list { display: flex; flex-direction: column; gap: 8px; }
+  .alert-item {
+    display: flex; align-items: flex-start; gap: 10px;
+    background: var(--bg2); border-radius: var(--radius-sm);
+    padding: 10px 12px;
+    border-left: 3px solid transparent;
+  }
+  .alert-item.CRITICAL { border-left-color: var(--red); }
+  .alert-item.WARNING { border-left-color: var(--yellow); }
+  .alert-item.SAFE { border-left-color: var(--green); }
+  .alert-icon { width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; flex-shrink: 0; }
+  .alert-icon.CRITICAL { background: rgba(239,68,68,0.15); color: var(--red); }
+  .alert-icon.WARNING { background: rgba(245,158,11,0.15); color: var(--yellow); }
+  .alert-icon.SAFE { background: rgba(34,197,94,0.15); color: var(--green); }
+  .alert-body { flex: 1; }
+  .alert-title { font-size: 12px; font-weight: 600; }
+  .alert-desc { font-size: 11px; color: var(--text2); margin-top: 2px; line-height: 1.5; }
+  .alert-time { font-size: 10px; color: var(--text3); font-family: var(--mono); }
+
+  .rec-item {
+    background: var(--bg2); border-radius: var(--radius-sm);
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+  }
+  .rec-priority {
+    font-size: 10px; font-weight: 700; letter-spacing: 1px;
+    font-family: var(--mono); margin-bottom: 3px;
+  }
+  .rec-priority.CRITICAL { color: var(--red); }
+  .rec-priority.HIGH { color: var(--yellow); }
+  .rec-priority.MEDIUM { color: var(--accent2); }
+  .rec-priority.INFO { color: var(--text3); }
+  .rec-action { font-size: 12px; font-weight: 600; margin-bottom: 3px; }
+  .rec-detail { font-size: 11px; color: var(--text2); line-height: 1.5; }
+
+  /* ── Log ── */
+  .log-list { font-family: var(--mono); font-size: 11px; display: flex; flex-direction: column; gap: 4px; max-height: 280px; overflow-y: auto; }
+  .log-entry { display: flex; gap: 10px; padding: 5px 8px; border-radius: 4px; background: var(--bg2); }
+  .log-time { color: var(--text3); flex-shrink: 0; }
+  .log-msg { color: var(--text2); }
+  .log-msg.ok { color: var(--green); }
+  .log-msg.warn { color: var(--yellow); }
+  .log-msg.err { color: var(--red); }
+  .log-msg.info { color: var(--accent2); }
+
+  /* ── Predict section ── */
+  .predict-row { display: flex; gap: 12px; }
+  .predict-cell {
+    flex: 1; background: var(--bg2); border-radius: var(--radius-sm);
+    padding: 10px 12px; text-align: center;
+    border: 1px solid var(--border);
+  }
+  .predict-tid { font-size: 11px; color: var(--text3); margin-bottom: 4px; font-family: var(--mono); }
+  .predict-val { font-size: 18px; font-weight: 700; font-family: var(--mono); }
+  .predict-trend { font-size: 11px; margin-top: 3px; }
+  .predict-trend.up { color: var(--red); }
+  .predict-trend.down { color: var(--green); }
+
+  /* ── Footer ── */
+  .footer { padding: 1rem 2rem; border-top: 1px solid var(--border); text-align: center; font-size: 11px; color: var(--text3); }
+
+  /* ── API endpoint ref ── */
+  .endpoint-list { display: flex; flex-direction: column; gap: 6px; }
+  .endpoint-row { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+  .ep-method {
+    font-family: var(--mono); font-size: 10px; font-weight: 700;
+    padding: 2px 7px; border-radius: 4px; flex-shrink: 0; width: 38px; text-align: center;
+  }
+  .ep-method.GET { background: rgba(34,197,94,0.12); color: var(--green); }
+  .ep-method.POST { background: rgba(59,130,246,0.12); color: var(--accent2); }
+  .ep-path { font-family: var(--mono); color: var(--text2); }
+  .ep-desc { color: var(--text3); font-size: 11px; }
+
+  /* ── Shift modal ── */
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.7);
+    backdrop-filter: blur(4px);
+    display: none; align-items: center; justify-content: center;
+    z-index: 1000;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--card); border: 1px solid var(--border2);
+    border-radius: var(--radius); padding: 1.5rem; width: 380px;
+  }
+  .modal-title { font-size: 16px; font-weight: 600; margin-bottom: 1rem; }
+  .form-group { margin-bottom: 0.75rem; }
+  .form-label { font-size: 12px; color: var(--text2); margin-bottom: 4px; display: block; }
+  .form-select, .form-input {
+    width: 100%; background: var(--bg2); border: 1px solid var(--border2);
+    border-radius: var(--radius-sm); padding: 8px 10px;
+    color: var(--text); font-family: var(--font); font-size: 13px;
+  }
+  .modal-actions { display: flex; gap: 8px; margin-top: 1rem; }
+
+  /* ── Scrollbar ── */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+  /* ── Animations ── */
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+  .card, .tcard, .summary-card { animation: fadeIn 0.4s ease both; }
+</style>
+</head>
+<body>
+<div class="shell">
+
+<!-- Topbar -->
+<header class="topbar">
+  <div class="logo">
+    <div class="logo-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round">
+        <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+      </svg>
+    </div>
+    <div>
+      <div class="logo-text">Grid<span>Sense</span> AI</div>
+    </div>
+  </div>
+  <div class="topbar-right">
+    <div class="live-badge"><div class="live-dot"></div> LIVE</div>
+    <div class="clock" id="clock">--:--:--</div>
+  </div>
+</header>
+
+<!-- Main -->
+<main class="main">
+
+  <!-- Summary Strip -->
+  <div class="summary-strip">
+    <div class="summary-card blue">
+      <div class="summary-label">Total Grid Load</div>
+      <div class="summary-value" id="sum-load">--</div>
+      <div class="summary-sub">kW across all transformers</div>
+    </div>
+    <div class="summary-card green">
+      <div class="summary-label">Safe Transformers</div>
+      <div class="summary-value" id="sum-safe" style="color:var(--green)">--</div>
+      <div class="summary-sub">operating normally</div>
+    </div>
+    <div class="summary-card yellow">
+      <div class="summary-label">Warnings Active</div>
+      <div class="summary-value" id="sum-warn" style="color:var(--yellow)">--</div>
+      <div class="summary-sub">require monitoring</div>
+    </div>
+    <div class="summary-card red">
+      <div class="summary-label">Critical Alerts</div>
+      <div class="summary-value" id="sum-crit" style="color:var(--red)">--</div>
+      <div class="summary-sub">immediate action needed</div>
+    </div>
+  </div>
+
+  <!-- Transformer Cards -->
+  <div class="section-label">Transformer Status</div>
+  <div class="transformer-grid" id="transformer-grid">
+    <!-- JS rendered -->
+  </div>
+
+  <!-- Content Grid Row 1 -->
+  <div class="content-grid">
+
+    <!-- Load History Chart -->
+    <div class="card span2">
+      <div class="card-header">
+        <div class="card-title">Load History — Last 60 ticks</div>
+        <div class="card-badge">LIVE</div>
+      </div>
+      <div class="chart-wrap">
+        <canvas id="historyChart"></canvas>
+      </div>
+    </div>
+
+    <!-- Alerts -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">Active Alerts</div>
+        <div class="card-badge" id="alert-count-badge">0 alerts</div>
+      </div>
+      <div class="alert-list" id="alert-list">
+        <div style="font-size:12px;color:var(--text3);text-align:center;padding:1rem;">Loading...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Content Grid Row 2 -->
+  <div class="content-grid">
+
+    <!-- Predictions -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">ML Predictions — 30 min</div>
+        <div class="card-badge">AI</div>
+      </div>
+      <div class="predict-row" id="predict-row">
+        <!-- JS rendered -->
+      </div>
+      <div style="margin-top:0.75rem;">
+        <div class="chart-wrap" style="height:140px;">
+          <canvas id="predChart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Recommendations -->
+    <div class="card span2">
+      <div class="card-header">
+        <div class="card-title">AI Recommendations</div>
+        <button class="btn primary" onclick="triggerAutoShift()" style="width:auto;padding:6px 14px;font-size:12px;">Auto Redistribute</button>
+      </div>
+      <div class="rec-list" id="rec-list">
+        <div style="font-size:12px;color:var(--text3);text-align:center;padding:1rem;">Loading...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bottom Row -->
+  <div class="content-grid">
+    <!-- System Log -->
+    <div class="card span2">
+      <div class="card-header">
+        <div class="card-title">System Log</div>
+        <button class="btn" onclick="clearLog()" style="width:auto;padding:5px 10px;font-size:11px;">Clear</button>
+      </div>
+      <div class="log-list" id="log-list"></div>
+    </div>
+
+    <!-- API Reference -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">API Endpoints</div>
+      </div>
+      <div class="endpoint-list">
+        <div class="endpoint-row"><span class="ep-method GET">GET</span><span class="ep-path">/status</span></div>
+        <div class="endpoint-row"><span class="ep-method POST">POST</span><span class="ep-path">/data</span></div>
+        <div class="endpoint-row"><span class="ep-method GET">GET</span><span class="ep-path">/predict</span></div>
+        <div class="endpoint-row"><span class="ep-method GET">GET</span><span class="ep-path">/alert</span></div>
+        <div class="endpoint-row"><span class="ep-method GET">GET</span><span class="ep-path">/recommend</span></div>
+        <div class="endpoint-row"><span class="ep-method POST">POST</span><span class="ep-path">/shift</span></div>
+        <div class="endpoint-row"><span class="ep-method POST">POST</span><span class="ep-path">/auto-shift</span></div>
+      </div>
+      <div style="margin-top:1rem;font-size:11px;color:var(--text3);">
+        Base URL: <span style="font-family:var(--mono);color:var(--accent2);">http://localhost:8000</span>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<!-- Load Shift Modal -->
+<div class="modal-overlay" id="shiftModal">
+  <div class="modal">
+    <div class="modal-title">Shift Load</div>
+    <div class="form-group">
+      <label class="form-label">From Transformer</label>
+      <select class="form-select" id="shift-from">
+        <option>T1</option><option>T2</option><option>T3</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">To Transformer</label>
+      <select class="form-select" id="shift-to">
+        <option>T2</option><option>T1</option><option>T3</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Load Amount (kW)</label>
+      <input class="form-input" id="shift-amount" type="number" value="200" min="10" max="2000" />
+    </div>
+    <div class="modal-actions">
+      <button class="btn primary" onclick="executeShift()" style="flex:1;">Execute Shift</button>
+      <button class="btn" onclick="closeModal()" style="width:auto;padding:6px 14px;">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<footer class="footer">
+  GridSense AI v1.0 &nbsp;·&nbsp; Smart Grid Safety & Energy Optimization Platform &nbsp;·&nbsp; Powered by FastAPI + Scikit-learn
+</footer>
+
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+// ── Config ────────────────────────────────────────────────────────────────────
+const API = 'http://localhost:8000';
+const POLL_MS = 3000;
+const MAX_LOG = 40;
+
+// ── State ─────────────────────────────────────────────────────────────────────
+let loadHistory = { T1: [], T2: [], T3: [] };
+let predData = {};
+let histChart = null, predChart = null;
+let logEntries = [];
+
+// ── Clock ─────────────────────────────────────────────────────────────────────
+function updateClock() {
+  const now = new Date();
+  document.getElementById('clock').textContent =
+    now.toLocaleTimeString('en-GB', { hour12: false });
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// ── API Fetcher ───────────────────────────────────────────────────────────────
+async function apiFetch(path, method = 'GET', body = null) {
+  try {
+    const opts = { method, headers: { 'Content-Type': 'application/json' } };
+    if (body) opts.body = JSON.stringify(body);
+    const res = await fetch(API + path, opts);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.json();
+  } catch (e) {
+    addLog(`API error: ${path} — ${e.message}`, 'err');
+    return null;
+  }
+}
+
+// ── Logging ───────────────────────────────────────────────────────────────────
+function addLog(msg, type = '') {
+  const now = new Date().toLocaleTimeString('en-GB', { hour12: false });
+  logEntries.unshift({ time: now, msg, type });
+  if (logEntries.length > MAX_LOG) logEntries.pop();
+  renderLog();
+}
+
+function renderLog() {
+  const el = document.getElementById('log-list');
+  el.innerHTML = logEntries.map(e =>
+    `<div class="log-entry">
+      <span class="log-time">${e.time}</span>
+      <span class="log-msg ${e.type}">${e.msg}</span>
+    </div>`
+  ).join('');
+}
+
+function clearLog() { logEntries = []; renderLog(); }
+
+// ── Risk helpers ──────────────────────────────────────────────────────────────
+function getRiskClass(pct) {
+  if (pct < 75) return 'safe';
+  if (pct < 90) return 'warning';
+  return 'critical';
+}
+function getRiskLabel(pct) {
+  if (pct < 75) return 'SAFE';
+  if (pct < 90) return 'WARNING';
+  return 'CRITICAL';
+}
+function getRiskColor(pct) {
+  if (pct < 75) return '#22c55e';
+  if (pct < 90) return '#f59e0b';
+  return '#ef4444';
+}
+
+// ── Summary Strip ─────────────────────────────────────────────────────────────
+function updateSummary(states) {
+  let total = 0, safe = 0, warn = 0, crit = 0;
+  for (const t of Object.values(states)) {
+    total += t.load_kw;
+    const l = getRiskLabel(t.load_percent);
+    if (l === 'SAFE') safe++;
+    else if (l === 'WARNING') warn++;
+    else crit++;
+  }
+  document.getElementById('sum-load').textContent = (total / 1000).toFixed(1) + 'M';
+  document.getElementById('sum-safe').textContent = safe;
+  document.getElementById('sum-warn').textContent = warn;
+  document.getElementById('sum-crit').textContent = crit;
+}
+
+// ── Transformer Cards ─────────────────────────────────────────────────────────
+function renderTransformers(states) {
+  const grid = document.getElementById('transformer-grid');
+  const zones = { T1: 'Zone A – Industrial', T2: 'Zone B – Residential', T3: 'Zone C – Commercial' };
+  grid.innerHTML = Object.entries(states).map(([tid, t]) => {
+    const pct = t.load_percent;
+    const rc = getRiskClass(pct);
+    const rl = getRiskLabel(pct);
+    const color = getRiskColor(pct);
+    const barPct = Math.min(100, pct);
+    return `
+    <div class="tcard ${rc}">
+      <div class="tcard-header">
+        <div>
+          <div class="tcard-id">${tid}</div>
+          <div class="tcard-zone">${zones[tid] || t.location || ''}</div>
+        </div>
+        <div class="risk-badge ${rl}">${rl}</div>
+      </div>
+      <div class="load-bar-wrap">
+        <div class="load-bar-top">
+          <span>Load</span>
+          <span style="font-family:var(--mono);font-weight:600;color:${color}">${pct.toFixed(1)}%</span>
+        </div>
+        <div class="load-bar-track">
+          <div class="load-bar-fill ${rc}" style="width:${barPct}%"></div>
+        </div>
+      </div>
+      <div class="tcard-stats">
+        <div class="tstat">
+          <div class="tstat-label">Load</div>
+          <div class="tstat-value">${(t.load_kw/1000).toFixed(2)} MW</div>
+        </div>
+        <div class="tstat">
+          <div class="tstat-label">Capacity</div>
+          <div class="tstat-value">${(t.capacity_kw/1000).toFixed(1)} MW</div>
+        </div>
+        <div class="tstat">
+          <div class="tstat-label">Voltage</div>
+          <div class="tstat-value">${t.voltage?.toFixed(1)} V</div>
+        </div>
+        <div class="tstat">
+          <div class="tstat-label">Frequency</div>
+          <div class="tstat-value">${t.frequency_hz?.toFixed(2)} Hz</div>
+        </div>
+      </div>
+      <div class="tcard-actions">
+        <button class="btn primary" onclick="openShiftFrom('${tid}')">Shift Load</button>
+        ${rl !== 'SAFE' ? `<button class="btn danger" onclick="quickShed('${tid}')">Quick Shed</button>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── History Chart ─────────────────────────────────────────────────────────────
+function initHistChart() {
+  const ctx = document.getElementById('historyChart').getContext('2d');
+  histChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: Array.from({length: 60}, (_, i) => ''),
+      datasets: [
+        { label: 'T1', data: [], borderColor: '#3b82f6', backgroundColor: 'rgba(59,130,246,0.08)', tension: 0.4, fill: true, pointRadius: 0, borderWidth: 2 },
+        { label: 'T2', data: [], borderColor: '#14b8a6', backgroundColor: 'rgba(20,184,166,0.08)', tension: 0.4, fill: true, pointRadius: 0, borderWidth: 2 },
+        { label: 'T3', data: [], borderColor: '#a78bfa', backgroundColor: 'rgba(167,139,250,0.08)', tension: 0.4, fill: true, pointRadius: 0, borderWidth: 2 },
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false, animation: false,
+      plugins: { legend: { display: true, labels: { color: '#8a95b0', font: { size: 11, family: 'JetBrains Mono' }, boxWidth: 10 } } },
+      scales: {
+        x: { display: false },
+        y: { min: 0, max: 100, ticks: { color: '#5a6480', font: { size: 10, family: 'JetBrains Mono' }, callback: v => v + '%' }, grid: { color: 'rgba(255,255,255,0.04)' } }
+      }
+    }
+  });
+}
+
+function updateHistChart(states) {
+  for (const [tid, t] of Object.entries(states)) {
+    if (!loadHistory[tid]) loadHistory[tid] = [];
+    loadHistory[tid].push(t.load_percent);
+    if (loadHistory[tid].length > 60) loadHistory[tid].shift();
+  }
+  if (!histChart) return;
+  histChart.data.datasets[0].data = loadHistory['T1'] || [];
+  histChart.data.datasets[1].data = loadHistory['T2'] || [];
+  histChart.data.datasets[2].data = loadHistory['T3'] || [];
+  histChart.update('none');
+}
+
+// ── Prediction Chart ──────────────────────────────────────────────────────────
+function initPredChart() {
+  const ctx = document.getElementById('predChart').getContext('2d');
+  predChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: ['T1 Now', 'T1 +30m', 'T2 Now', 'T2 +30m', 'T3 Now', 'T3 +30m'],
+      datasets: [{
+        data: [0,0,0,0,0,0],
+        backgroundColor: [
+          'rgba(59,130,246,0.4)','rgba(59,130,246,0.8)',
+          'rgba(20,184,166,0.4)','rgba(20,184,166,0.8)',
+          'rgba(167,139,250,0.4)','rgba(167,139,250,0.8)',
+        ],
+        borderRadius: 4,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false, animation: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { color: '#5a6480', font: { size: 9, family: 'JetBrains Mono' } }, grid: { display: false } },
+        y: { min: 0, max: 100, ticks: { color: '#5a6480', font: { size: 9, family: 'JetBrains Mono' }, callback: v => v + '%' }, grid: { color: 'rgba(255,255,255,0.04)' } }
+      }
+    }
+  });
+}
+
+function updatePredUI(preds, currentStates) {
+  predData = preds;
+  const row = document.getElementById('predict-row');
+  row.innerHTML = Object.entries(preds).map(([tid, p]) => {
+    const trend = p.predicted_load_kw > p.current_load_kw ? 'up' : 'down';
+    const trendSym = trend === 'up' ? '▲' : '▼';
+    const trendPct = Math.abs(p.predicted_load_30min_kw - p.current_load_kw).toFixed(0);
+    return `<div class="predict-cell">
+      <div class="predict-tid">${tid}</div>
+      <div class="predict-val" style="color:${getRiskColor(p.predicted_load_percent)}">${p.predicted_load_percent.toFixed(1)}%</div>
+      <div class="predict-trend ${trend}">${trendSym} ${trendPct} kW</div>
+    </div>`;
+  }).join('');
+
+  if (!predChart) return;
+  const tids = ['T1','T2','T3'];
+  const data = [];
+  for (const tid of tids) {
+    const curr = currentStates[tid] ? currentStates[tid].load_percent : 0;
+    const pred = preds[tid] ? preds[tid].predicted_load_percent : 0;
+    data.push(Math.round(curr), Math.round(pred));
+  }
+  predChart.data.datasets[0].data = data;
+  predChart.update('none');
+}
+
+// ── Alerts ────────────────────────────────────────────────────────────────────
+function renderAlerts(alerts) {
+  const el = document.getElementById('alert-list');
+  document.getElementById('alert-count-badge').textContent = `${alerts.length} alert${alerts.length !== 1 ? 's' : ''}`;
+  if (alerts.length === 0) {
+    el.innerHTML = '<div style="font-size:12px;color:var(--green);text-align:center;padding:1rem;">✓ All systems nominal</div>';
+    return;
+  }
+  const icons = { CRITICAL: '!', WARNING: '~', INFO: 'i' };
+  el.innerHTML = alerts.slice(0, 5).map(a => `
+    <div class="alert-item ${a.risk_level}">
+      <div class="alert-icon ${a.risk_level}">${icons[a.risk_level] || 'i'}</div>
+      <div class="alert-body">
+        <div class="alert-title">${a.transformer_id} — ${a.risk_level} (${a.load_percent?.toFixed(1)}%)</div>
+        <div class="alert-desc">${a.message}</div>
+      </div>
+      <div class="alert-time">${new Date(a.timestamp).toLocaleTimeString('en-GB', {hour12:false})}</div>
+    </div>`).join('');
+}
+
+// ── Recommendations ───────────────────────────────────────────────────────────
+function renderRecs(recs) {
+  const el = document.getElementById('rec-list');
+  const allRecs = recs.flatMap(r =>
+    r.recommendations.slice(0, 2).map(rec => ({ ...rec, tid: r.transformer_id }))
+  ).slice(0, 6);
+  if (!allRecs.length) {
+    el.innerHTML = '<div style="font-size:12px;color:var(--text3);text-align:center;padding:1rem;">No recommendations at this time.</div>';
+    return;
+  }
+  el.innerHTML = `<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">` +
+    allRecs.map(r => `
+    <div class="rec-item">
+      <div class="rec-priority ${r.priority}">${r.priority} · ${r.tid || ''}</div>
+      <div class="rec-action">${r.action}</div>
+      <div class="rec-detail">${r.detail}</div>
+    </div>`).join('') + `</div>`;
+}
+
+// ── Load Shift Modal ──────────────────────────────────────────────────────────
+function openShiftFrom(tid) {
+  document.getElementById('shift-from').value = tid;
+  document.getElementById('shiftModal').classList.add('open');
+}
+function closeModal() {
+  document.getElementById('shiftModal').classList.remove('open');
+}
+async function executeShift() {
+  const from = document.getElementById('shift-from').value;
+  const to = document.getElementById('shift-to').value;
+  const amount = parseFloat(document.getElementById('shift-amount').value);
+  if (from === to) { addLog('Cannot shift to same transformer', 'err'); return; }
+  addLog(`Shifting ${amount} kW from ${from} → ${to}...`, 'info');
+  const result = await apiFetch('/shift', 'POST', { from_transformer: from, to_transformer: to, load_amount: amount });
+  if (result?.status === 'success') {
+    addLog(`Shifted ${result.shifted_kw} kW from ${from} → ${to} ✓`, 'ok');
+  } else {
+    addLog(`Shift failed: ${result?.reason || 'unknown'}`, 'err');
+  }
+  closeModal();
+}
+
+async function quickShed(tid) {
+  addLog(`Quick shed triggered on ${tid}`, 'warn');
+  const result = await apiFetch('/auto-shift', 'POST');
+  if (result?.actions?.length) {
+    addLog(`Auto-shifted: ${result.actions.map(a => `${a.from}→${a.to} (${a.shifted_kw}kW)`).join(', ')}`, 'ok');
+  } else {
+    addLog(`Auto-shift: ${result?.message || 'no action taken'}`, 'warn');
+  }
+}
+
+async function triggerAutoShift() {
+  addLog('Triggering automatic load redistribution...', 'info');
+  const result = await apiFetch('/auto-shift', 'POST');
+  if (result?.actions?.length) {
+    result.actions.forEach(a => addLog(`Redistributed: ${a.from} → ${a.to} (${a.shifted_kw} kW)`, 'ok'));
+  } else {
+    addLog(result?.message || 'No redistribution needed', 'info');
+  }
+}
+
+// ── Main Poll Loop ────────────────────────────────────────────────────────────
+async function poll() {
+  const [statusRes, alertRes, recRes, predRes] = await Promise.all([
+    apiFetch('/status'),
+    apiFetch('/alert'),
+    apiFetch('/recommend'),
+    apiFetch('/predict'),
+  ]);
+
+  if (statusRes) {
+    const states = statusRes.transformers;
+    updateSummary(states);
+    renderTransformers(states);
+    updateHistChart(states);
+    if (predRes) updatePredUI(predRes.predictions, states);
+  }
+  if (alertRes) renderAlerts(alertRes.alerts);
+  if (recRes) renderRecs(recRes.recommendations);
+}
+
+// ── Offline Simulation (when API not running) ─────────────────────────────────
+let simTick = 0;
+let simState = {
+  T1: { load_kw: 2750, capacity_kw: 5000, voltage: 229.5, frequency_hz: 50.01, phase: 0 },
+  T2: { load_kw: 3150, capacity_kw: 3500, voltage: 231.2, frequency_hz: 49.98, phase: 1 },
+  T3: { load_kw: 2400, capacity_kw: 4000, voltage: 230.8, frequency_hz: 50.00, phase: 2 },
+};
+
+function simulateOffline() {
+  simTick++;
+  const now = new Date();
+  const hour = now.getHours() + now.getMinutes() / 60;
+  const diurnal = 0.3 + 0.4 * Math.sin(Math.PI * (hour - 6) / 12) ** 2;
+
+  for (const [tid, t] of Object.entries(simState)) {
+    const base = { T1: 0.55, T2: 0.90, T3: 0.60 }[tid];
+    const target = base * 0.5 + diurnal * 0.3 + 0.2 * (0.5 + 0.3 * Math.sin(simTick * 0.1 + t.phase));
+    const noise = (Math.random() - 0.5) * 0.03;
+    const newFrac = 0.12 * (target + noise) + 0.88 * (t.load_kw / t.capacity_kw);
+    t.load_kw = Math.round(Math.max(t.capacity_kw * 0.1, Math.min(t.capacity_kw * 1.05, newFrac * t.capacity_kw)));
+    t.load_percent = parseFloat((t.load_kw / t.capacity_kw * 100).toFixed(1));
+    t.voltage = parseFloat((230 - (t.load_percent / 100 - 0.5) * 20 + (Math.random() - 0.5)).toFixed(2));
+    t.frequency_hz = parseFloat((50 - (t.load_percent / 100 - 0.5) * 0.4).toFixed(3));
+    t.location = { T1: 'Zone A – Industrial', T2: 'Zone B – Residential', T3: 'Zone C – Commercial' }[tid];
+  }
+
+  // Simulate predictions
+  const preds = {};
+  for (const [tid, t] of Object.entries(simState)) {
+    const predPct = t.load_percent + (Math.random() - 0.4) * 8;
+    preds[tid] = {
+      current_load_kw: t.load_kw,
+      predicted_load_kw: Math.round(predPct / 100 * t.capacity_kw),
+      predicted_load_30min_kw: Math.round(predPct / 100 * t.capacity_kw),
+      predicted_load_percent: parseFloat(predPct.toFixed(1)),
+    };
+  }
+
+  updateSummary(simState);
+  renderTransformers(simState);
+  updateHistChart(simState);
+  updatePredUI(preds, simState);
+
+  // Alerts
+  const alerts = Object.entries(simState)
+    .filter(([, t]) => t.load_percent >= 75)
+    .map(([tid, t]) => ({
+      transformer_id: tid,
+      risk_level: getRiskLabel(t.load_percent),
+      load_percent: t.load_percent,
+      message: t.load_percent >= 90 ? 'Overload risk — immediate action required!' : 'Approaching capacity — monitor closely.',
+      timestamp: now.toISOString(),
+    }));
+  renderAlerts(alerts);
+
+  // Recs (simplified)
+  const recs = Object.entries(simState).map(([tid, t]) => {
+    const rl = getRiskLabel(t.load_percent);
+    const suggestions = [];
+    if (rl === 'CRITICAL') {
+      suggestions.push({ priority: 'CRITICAL', action: 'Immediate Load Shedding', detail: `Shed ${Math.round(t.load_kw - t.capacity_kw * 0.85)} kW immediately.` });
+      suggestions.push({ priority: 'CRITICAL', action: 'Activate Backup Power', detail: 'Switch non-critical loads to UPS/diesel backup.' });
+    } else if (rl === 'WARNING') {
+      suggestions.push({ priority: 'HIGH', action: 'Reduce Non-Critical Loads', detail: `Shed ~${Math.round(t.load_kw * 0.10)} kW to bring below 75%.` });
+    } else {
+      suggestions.push({ priority: 'INFO', action: 'Monitor', detail: `${tid} is nominal at ${t.load_percent.toFixed(1)}%.` });
+    }
+    return { transformer_id: tid, risk_level: rl, load_percent: t.load_percent, recommendations: suggestions };
+  });
+  recs.sort((a, b) => ({ CRITICAL: 0, WARNING: 1, SAFE: 2 }[a.risk_level] - ({ CRITICAL: 0, WARNING: 1, SAFE: 2 }[b.risk_level])));
+  renderRecs(recs);
+
+  // Log occasionally
+  if (simTick % 5 === 0) {
+    const crits = Object.entries(simState).filter(([, t]) => t.load_percent >= 90);
+    if (crits.length) addLog(`CRITICAL: ${crits.map(([t]) => t).join(', ')} above 90%`, 'err');
+    else addLog(`Grid stable — tick #${simTick}`, 'ok');
+  }
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+async function init() {
+  addLog('GridSense AI dashboard initialized', 'info');
+  initHistChart();
+  initPredChart();
+
+  // Try API first, fall back to simulation
+  const health = await apiFetch('/');
+  if (health) {
+    addLog('Connected to GridSense API at localhost:8000', 'ok');
+    await poll();
+    setInterval(poll, POLL_MS);
+  } else {
+    addLog('API offline — running local simulation mode', 'warn');
+    simulateOffline();
+    setInterval(simulateOffline, POLL_MS);
+  }
+}
+
+init();
+</script>
+</body>
+</html>
